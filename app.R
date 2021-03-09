@@ -8,6 +8,8 @@ library(shinyjs)
 vaccines = read_csv(url("https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv")) %>% drop_na() 
 #delete ISO code
 vaccines=vaccines[c(-2,-7,-8,-10)]
+vaccines=na.omit(vaccines)
+maxPop = vaccines$total_vaccinations %>% max(na.rm=TRUE)
 
 vaccines %<>% mutate_at(c("date", "location"), as.factor)
 vaccines_dates = levels(vaccines$date) %>% str_sort()
@@ -17,30 +19,52 @@ vaccines_countries = levels(vaccines$location)
 myHeader = div(id="advanced",
                useShinyjs(),
                selectInput(
-                   inputId = "selected_date",
-                   label = "Select the date(s)",
-                   multiple = TRUE,
-                   choices = vaccines_dates,
-                   selected = c(vaccines_dates[1])
+                 inputId = "selected_date",
+                 label = "Select the date(s)",
+                 multiple = TRUE,
+                 choices = vaccines_dates,
+                 selected = c(vaccines_dates[1])
                ),
                selectInput(
-                   inputId = "selected_location",
-                   label = "Select the location(s)",
-                   multiple = TRUE,
-                   choices = vaccines_countries,
-                   selected = c(vaccines_countries[1])
-               ),
-               downloadButton("report", "Generate report")
+                 inputId = "selected_location",
+                 label = "Select the location(s)",
+                 multiple = TRUE,
+                 choices = vaccines_countries,
+                 selected = c(vaccines_countries[1])
+               )
 )
 
 dataPanel = tabPanel("Data",
                      tableOutput("data")
 )
 
+plotPanel = tabPanel("Plot",
+                     fluidRow(
+                       column(width = 8,
+                              plotOutput("plot",
+                                         hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                              )),
+                       column(width = 4,
+                              h2("Info"),
+                              h3(
+                                textOutput("hoverlocation", container = span),
+                                textOutput("hoverdate", container = span),
+                              ),
+                              textOutput("hoverPop")
+                       )
+                     )
+)
+
+plotlyPanel = tabPanel("Dynamic plot",
+                       plotly::plotlyOutput("plotly")
+)
+
 
 # Define UI for application 
 ui = navbarPage("Arturo's shiny App",
                 dataPanel,
+                plotPanel,
+                plotlyPanel,
                 header = myHeader,
                 theme = shinytheme("united"),
                 id = "navBar"
@@ -48,12 +72,53 @@ ui = navbarPage("Arturo's shiny App",
 
 # Define server logic 
 server = function(input, output, session) { 
-    
-    vaccines_date = reactive({vaccines %>%
-            filter(date %in% input$selected_date, location %in% input$selected_location)})
-    
-    output$data = renderTable(vaccines_date());
-    
+  
+  vaccines_date = reactive({vaccines %>%
+      filter(date %in% input$selected_date, location %in% input$selected_location)})
+  
+  output$data = renderTable(vaccines_date());
+  
+  output$plot = renderPlot(
+    ggplot(vaccines_date(), aes(x=location, y=total_vaccinations, fill=date))
+    + geom_bar(stat="identity", position=position_dodge())
+  )
+  
+  output$plotly = plotly::renderPlotly(
+    ggplot(vaccines_date(), aes(x=location, y=total_vaccinations, fill=date))
+    + geom_bar(stat="identity", position=position_dodge())
+  )
+  
+  output$plot_hoverinfo = renderPrint({
+    cat("Hover (throttled):\n")
+    str(input$plot_hover)
+  })
+  
+  hoverlocationIdx = reactive({
+    req(input$plot_hover$x)
+    round(input$plot_hover$x)
+  })
+  hoverlocation = reactive({
+    req(hoverlocationIdx() > 0 & hoverlocationIdx() <= length(input$selected_location))
+    input$selected_location[hoverlocationIdx()]
+  })
+  hoverdateIdx = reactive(ceiling((input$plot_hover$x-hoverlocationIdx()+0.5)*length(input$selected_date)))
+  hoverdate = reactive({
+    req(input$plot_hover$x)
+    req(hoverlocation() != "")
+    input$selected_date[hoverdateIdx()]}
+  )
+  output$hoverlocation = renderText(hoverlocation())
+  output$hoverdate =renderText(hoverdate())
+  output$hoverPop =renderText(paste("Total vaccinations: ",
+                                    vaccines_date() %>% 
+                                      filter(date == hoverdate(), location == hoverlocation()) %>%
+                                      pull(total_vaccinations)))
+  #refresh page when moving through sections
+  observe({
+    shinyjs::show("advanced")
+  })
+  
+  
 }
 
 # Run the application 
