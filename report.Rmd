@@ -1,0 +1,35 @@
+---
+title: "Report"
+author: "Arturo Prieto Tirado"
+date: "09/03/2021"
+output: pdf_document
+params:
+  selected_date: input$selected_date
+  selected_location: input$selected_location
+---
+```{r include=FALSE}
+vaccines = read_csv(url("https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv")) %>% drop_na() 
+#delete ISO code
+vaccines=vaccines[c(-2,-7,-8,-10)]
+  library(tidyverse)
+  vaccines_date <- vaccines %>% 
+    mutate_at(c("date", "location"), as.factor) %>%
+    filter(date %in% params$selected_date, location %in% params$selected_location)
+```
+
+# Countries
+```{r}
+# The `params` object is available in the document.
+params$selected_location
+```
+
+# Dates
+```{r}
+# The `params` object is available in the document.
+params$selected_date
+```
+
+
+```{r echo=FALSE}
+ggplot(vaccines_date, aes(x=location, y=total_vaccinations, fill=date)) + 
+  geom_bar(stat="identity", position=position_dodge())
