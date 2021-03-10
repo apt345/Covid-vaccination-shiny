@@ -35,6 +35,7 @@ The dates you selected were:
 params$selected_date
 ```
 
+
 # Total vaccinations for your selection
 
 The following plot shows total vaccination for the countries and dates you selected (it can happen that a given country did not vaccinate on your selected date, thus, not appearing).

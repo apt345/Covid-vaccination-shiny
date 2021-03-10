@@ -39,22 +39,6 @@ dataPanel = tabPanel("Data",
                       tableOutput("data")
 )
 
-plotPanel = tabPanel("Plot",
-                      fluidRow(
-                          column(width = 8,
-                                 plotOutput("plot",
-                                            hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
-                                 )),
-                          column(width = 4,
-                                 h2("Info"),
-                                 h3(
-                                     textOutput("hoverlocation", container = span),
-                                     textOutput("hoverdate", container = span),
-                                 ),
-                                 textOutput("hoverPop")
-                          )
-                      )
-)
 
 plotlyPanel = tabPanel("Dynamic plot",
                         plotly::plotlyOutput("plotly")
@@ -64,7 +48,6 @@ plotlyPanel = tabPanel("Dynamic plot",
 # Define UI for application 
 ui = navbarPage("Arturo's shiny App",
                  dataPanel,
-                 plotPanel,
                  plotlyPanel,
                  header = myHeader,
                  theme = shinytheme("superhero"),
@@ -89,31 +72,6 @@ server = function(input, output, session) {
         + geom_bar(stat="identity", position=position_dodge())
     )
     
-    output$plot_hoverinfo = renderPrint({
-        cat("Hover (throttled):\n")
-        str(input$plot_hover)
-    })
-    
-    hoverlocationIdx = reactive({
-        req(input$plot_hover$x)
-        round(input$plot_hover$x)
-    })
-    hoverlocation = reactive({
-        req(hoverlocationIdx() > 0 & hoverlocationIdx() <= length(input$selected_location))
-        input$selected_location[hoverlocationIdx()]
-    })
-    hoverdateIdx = reactive(ceiling((input$plot_hover$x-hoverlocationIdx()+0.5)*length(input$selected_date)))
-    hoverdate = reactive({
-        req(input$plot_hover$x)
-        req(hoverlocation() != "")
-        input$selected_date[hoverdateIdx()]}
-    )
-    output$hoverlocation = renderText(hoverlocation())
-    output$hoverdate =renderText(hoverdate())
-    output$hoverPop =renderText(paste("Total vaccinations: ",
-                                       vaccines_date() %>% 
-                                           filter(date == hoverdate(), location == hoverlocation()) %>%
-                                           pull(total_vaccinations)))
     #refresh page when moving through sections
     observe({
             shinyjs::show("advanced")
