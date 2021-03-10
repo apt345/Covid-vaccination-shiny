@@ -1,5 +1,5 @@
 ---
-title: "Report"
+title: "Covid-19 Report"
 author: "Arturo Prieto Tirado"
 date: "09/03/2021"
 output: pdf_document
